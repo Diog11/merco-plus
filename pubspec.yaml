@@ -1,0 +1,36 @@
+name: merco_plus
+description: "Merco Plus — plateforme de gestion du garage (clients, stock, devis/factures, ateliers)."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Firebase — backend (Firestore, Auth, Storage)
+  firebase_core: ^3.6.0
+  cloud_firestore: ^5.4.4
+  firebase_auth: ^5.3.1
+
+  # UI / confort
+  google_fonts: ^6.2.1        # Oswald (titres) + Inter (corps) sans avoir à embarquer les polices
+  intl: ^0.19.0                # formatage des montants (FCFA) et des dates
+  uuid: ^4.4.0                 # génération d'identifiants locaux
+  video_player: ^2.9.2         # vidéo d'arrière-plan sur le tableau de bord
+  cupertino_icons: ^1.0.8
+  fl_chart: ^1.0.0              # graphiques du tableau de bord (évolution du CA, etc.)
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  # Ajoutez ici vos propres photos d'atelier une fois disponibles, ex. :
+  # assets:
+  #   - assets/images/atelier1.jpg
+  #   - assets/videos/atelier_bg.mp4
