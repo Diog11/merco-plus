@@ -76,6 +76,23 @@ inscription fonctionnent** :
 Sans cette étape, l'inscription/connexion renverra une erreur du type
 *"la connexion par e-mail/mot de passe n'est pas encore activée"*.
 
+## Phase 2 — Calendrier / planning atelier + Techniciens
+
+Premier module ajouté après la refonte visuelle :
+
+- **Techniciens** (`lib/screens/technicians_screen.dart`) : liste des
+  techniciens de l'atelier (nom, téléphone, spécialité), ajout et
+  suppression. Nouvelle collection Firestore `technicians`.
+- **Calendrier** (`lib/screens/calendar_screen.dart`) : vue mensuelle
+  avec navigation mois précédent/suivant, un point vert sur les jours
+  ayant au moins un rendez-vous, et un agenda détaillé du jour
+  sélectionné (client, véhicule, technicien, heure, statut). Permet de
+  créer un nouveau rendez-vous (client + véhicule + technicien + heure +
+  notes). Nouvelle collection Firestore `appointments`.
+- Ces deux nouvelles collections sont déjà couvertes par les règles de
+  sécurité Firestore existantes (`allow read, write: if request.auth !=
+  null`) — rien à reconfigurer côté Firebase.
+
 ## Phase 1.3 — Refonte complète (inspirée de Nsomi Jire)
 
 Remise à plat de l'identité visuelle, pas une simple retouche cette fois :
@@ -229,3 +246,30 @@ authentiques de votre atelier en bonne résolution :
 - Mode hors-ligne robuste (Firestore le permet nativement en activant
   la persistance locale — voir la doc `cloud_firestore`).
 - Export/sauvegarde et tableau de bord de reporting plus poussé.
+
+## Comptes, rôles et sécurité
+
+Deux types de compte, choisis à l'inscription :
+
+- **Admin** : toutes les fonctionnalités. Exige le *code administrateur* (document Firestore `config/adminInvite`, champ `code`), vérifié côté serveur par `firestore.rules`.
+- **Technicien** : accès restreint à son tableau de bord, avec uniquement les interventions qui lui sont attribuées (il peut en changer le statut, rien d'autre).
+
+La barrière de sécurité réelle est `firestore.rules` (à publier dans la console Firebase : Firestore > Règles). Les écrans ne font que refléter le rôle.
+
+Déconnexion automatique : la session ne vit que le temps de l'onglet (fermer l'onglet/navigateur = déconnexion), et au-delà de `kAwayLogoutAfter` (lib/screens/auth_gate.dart, 2 min par défaut) hors de l'application, il faut se reconnecter.
+
+## Brouillard de caisse
+
+Onglet **Caisse** + carte « Caisse du jour » sur le tableau de bord. Collection Firestore `cashEntries` : chaque entrée/sortie (libellé, catégorie, mode de paiement, montant). Bilan journalier : solde reporté de la veille + entrées − sorties = solde de clôture. Marquer une facture payée l'inscrit automatiquement en entrée (document `inv_<id>`, jamais en double). Les factures déjà payées avant cette mise à jour n'y figurent pas (pas de date d'encaissement).
+
+Authentification : un compte Admin doit saisir e-mail + mot de passe à chaque ouverture de l'application (une session restaurée par le navigateur est refusée).
+
+## Code administrateur à chaque connexion
+
+Un compte Admin passe par DEUX étapes à chaque ouverture : e-mail + mot de passe, puis code administrateur. Le code est vérifié par les règles Firestore (écriture de `adminSessions/{uid}` comparée à `config/adminInvite`). Tant que cette session n'est pas valide, aucune donnée n'est lisible, même avec le bon mot de passe. La session expire côté serveur en 30 min et est renouvelée toutes les 10 min tant que l'application est ouverte.
+
+## Mode hors ligne
+
+- Données : cache local Firestore (IndexedDB). Hors ligne, les écrans lisent le cache et les modifications se mettent en file d'attente, puis partent au retour d'Internet. Bandeau « Hors ligne » / « Synchronisation… » en haut.
+- Application : `web/mp_sw.js` (service worker) garde une copie locale de l'application, du moteur Flutter, des polices et des photos. Actif sur l'hébergement https (en local : ajouter `?sw=1`). Pour l'utiliser : `flutter build web --release` puis `firebase deploy --only hosting`, ouvrir le site en ligne, se connecter, actualiser deux fois.
+- Limites : la connexion (mot de passe + code Admin vérifié par le serveur) exige Internet. Les numéros de devis/factures créés hors ligne sont attribués à partir du plus grand numéro connu sur l'appareil. La session Admin serveur dure 12 h.

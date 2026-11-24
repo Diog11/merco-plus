@@ -1,3 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -19,6 +22,24 @@ Future<void> main() async {
   //   flutterfire configure
   // avant de lancer l'application pour de vrai — voir README.md.
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // MODE HORS LIGNE : cache local des données (IndexedDB). Les écrans continuent
+  // de fonctionner sans Internet ; les modifications attendent puis partent
+  // automatiquement au retour de la connexion.
+  try {
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
+  } catch (_) {/* ex. persistance indisponible (navigation privée) : mode en ligne seulement */}
+
+  // Session limitée à l'onglet : fermer l'onglet / le navigateur déconnecte,
+  // et il faut ressaisir e-mail + mot de passe. (Web uniquement.)
+  if (kIsWeb) {
+    try {
+      await FirebaseAuth.instance.setPersistence(Persistence.SESSION);
+    } catch (_) {/* sans gravité : la déconnexion à l'absence reste active */}
+  }
 
   runApp(const MercoPlusApp());
 }

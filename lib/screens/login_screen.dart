@@ -1,6 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../services/auth_flow.dart';
 import '../theme/app_theme.dart';
 import '../widgets/mp_badge.dart';
 import 'signup_screen.dart';
@@ -16,7 +16,9 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _loading = false;
+  bool _obscure = true;
   String? _error;
+  late final String? _info = AuthFlow.takeNotice();
 
   Future<void> _login() async {
     setState(() {
@@ -24,6 +26,8 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = null;
     });
     try {
+      // L'utilisateur s'authentifie lui-même : cette connexion est "fraîche".
+      AuthFlow.freshLogin = true;
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailCtrl.text.trim(),
         password: _passwordCtrl.text,
@@ -32,8 +36,10 @@ class _LoginScreenState extends State<LoginScreen> {
       // AuthGate (voir lib/screens/auth_gate.dart), qui écoute l'état
       // de connexion Firebase.
     } on FirebaseAuthException catch (e) {
+      AuthFlow.freshLogin = false;
       setState(() => _error = _friendlyError(e.code));
     } catch (_) {
+      AuthFlow.freshLogin = false;
       setState(() => _error = "Une erreur est survenue. Réessayez.");
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -49,6 +55,8 @@ class _LoginScreenState extends State<LoginScreen> {
         return "E-mail ou mot de passe incorrect.";
       case 'invalid-email':
         return "Adresse e-mail invalide.";
+      case 'network-request-failed':
+        return "Pas de connexion Internet : la connexion à la plateforme nécessite Internet.";
       case 'too-many-requests':
         return "Trop de tentatives. Réessayez dans quelques minutes.";
       default:
@@ -77,13 +85,8 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Center(child: MpBadge(size: 56)),
-                const SizedBox(height: 14),
-                Text('MERCO PLUS',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.oswald(
-                        fontWeight: FontWeight.w700, fontSize: 18, letterSpacing: 1, color: MpColors.textPrimaryDark)),
-                const SizedBox(height: 4),
+                const Center(child: MpBadge(size: 92)),
+                const SizedBox(height: 10),
                 Text('Connexion à la plateforme de gestion',
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: MpColors.chromeC, fontSize: 12.5)),
@@ -96,10 +99,21 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 14),
                 TextField(
                   controller: _passwordCtrl,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Mot de passe'),
+                  obscureText: _obscure,
+                  decoration: InputDecoration(
+                    labelText: 'Mot de passe',
+                    suffixIcon: IconButton(
+                      tooltip: _obscure ? 'Afficher le mot de passe' : 'Masquer le mot de passe',
+                      icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 18),
+                      onPressed: () => setState(() => _obscure = !_obscure),
+                    ),
+                  ),
                   onSubmitted: (_) => _login(),
                 ),
+                if (_info != null && _error == null) ...[
+                  const SizedBox(height: 12),
+                  Text(_info!, style: const TextStyle(color: MpColors.warning, fontSize: 12.5)),
+                ],
                 if (_error != null) ...[
                   const SizedBox(height: 12),
                   Text(_error!, style: const TextStyle(color: MpColors.red, fontSize: 12.5)),

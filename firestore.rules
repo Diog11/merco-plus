@@ -1,14 +1,158 @@
 rules_version = '2';
 
-// Règles de départ : accès réservé aux utilisateurs authentifiés.
-// À affiner ensuite par rôle (gérant / réceptionniste / technicien /
-// magasinier / comptable — voir le cahier des charges, §4.2) une fois
-// l'authentification Firebase (firebase_auth) branchée sur un vrai
-// système de comptes utilisateurs.
+// =====================================================================
+//  Merco Plus — règles de sécurité (rôles Admin / Technicien)
+//
+//  Ces règles sont la VRAIE barrière de sécurité : elles s'appliquent côté
+//  serveur Firebase, quoi que fasse (ou modifie) l'interface de l'application.
+//
+//  AVANT DE PUBLIER, créer dans la console Firebase :
+//    Firestore > Données > "Démarrer une collection"
+//      ID de collection : config
+//      ID du document   : adminInvite
+//      Champ            : code  (string)  = votre code administrateur secret
+//  Ce code est exigé à l'inscription d'un compte Admin. Personne ne peut le
+//  lire depuis l'application (config est fermée) — seules ces règles le lisent.
+// =====================================================================
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function myProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    // Le compte a le rôle admin (profil)...
+    function isAdminRole() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && myProfile().data.role == 'admin';
+    }
+
+    // ...ET a ouvert une session administrateur récente (code saisi à la connexion,
+    // renouvelée toutes les 10 min par l'application ; expire en 12 h, ce qui permet
+    // de continuer à travailler hors ligne sans perdre les modifications en attente).
+    //
+    // Une session PAR TYPE D'APPAREIL : <uid>_d (ordinateur) et <uid>_m (téléphone),
+    // pour que quitter l'application sur l'un ne coupe pas les droits de l'autre.
+    // L'ancien format <uid> reste accepté (anciennes versions de l'application).
+    function sessionFresh(sid) {
+      return exists(/databases/$(database)/documents/adminSessions/$(sid))
+        && request.time < get(/databases/$(database)/documents/adminSessions/$(sid)).data.at
+                          + duration.value(12, 'h');
+    }
+
+    function hasAdminSession() {
+      return sessionFresh(request.auth.uid + '_d')
+        || sessionFresh(request.auth.uid + '_m')
+        || sessionFresh(request.auth.uid);
+    }
+
+    function isMySessionId(sid) {
+      return sid == request.auth.uid
+        || sid == request.auth.uid + '_d'
+        || sid == request.auth.uid + '_m';
+    }
+
+    function isAdmin() {
+      return isAdminRole() && hasAdminSession();
+    }
+
+    // ---- Session administrateur : exige le bon code secret ---------------
+    match /adminSessions/{sid} {
+      allow create, update: if isAdminRole()
+        && isMySessionId(sid)
+        && request.resource.data.keys().hasOnly(['code', 'at'])
+        && request.resource.data.at == request.time
+        && exists(/databases/$(database)/documents/config/adminInvite)
+        && request.resource.data.code ==
+           get(/databases/$(database)/documents/config/adminInvite).data.code;
+      allow delete: if signedIn() && isMySessionId(sid);
+      allow read: if false;
+    }
+
+    // ---- Profils / rôles ------------------------------------------------
+    match /users/{uid} {
+      // Chacun lit son profil ; l'admin lit tous les profils (liste des techniciens).
+      allow get: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow list: if isAdmin();
+
+      // Création de SON propre profil :
+      //  - technicien : toujours possible
+      //  - admin      : seulement avec le bon code (config/adminInvite)
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.role in ['admin', 'technicien']
+        && (
+          (request.resource.data.role == 'technicien'
+            && request.resource.data.keys().hasOnly(['name', 'email', 'phone', 'role', 'createdAt']))
+          ||
+          (request.resource.data.role == 'admin'
+            && request.resource.data.keys().hasOnly(['name', 'email', 'phone', 'role', 'createdAt', 'adminCode'])
+            && exists(/databases/$(database)/documents/config/adminInvite)
+            && request.resource.data.get('adminCode', '') ==
+               get(/databases/$(database)/documents/config/adminInvite).data.code)
+        );
+
+      // Modification : on ne peut JAMAIS changer son propre rôle.
+      // (Un admin peut modifier n'importe quel profil, y compris les rôles.)
+      allow update: if isAdmin()
+        || (signedIn() && request.auth.uid == uid
+            && request.resource.data.role == resource.data.role
+            && request.resource.data.keys().hasOnly(['name', 'email', 'phone', 'role', 'createdAt']));
+
+      allow delete: if isAdmin();
+    }
+
+    // ---- Code d'invitation admin : fermé à tous les clients -------------
+    match /config/{doc} {
+      allow read, write: if false;
+    }
+
+    // ---- Interventions --------------------------------------------------
+    match /jobs/{jobId} {
+      // Admin : tout. Technicien : uniquement les interventions qui lui sont attribuées.
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.technicianUid == request.auth.uid);
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (signedIn()
+            && resource.data.technicianUid == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+            && request.resource.data.status in ['attente', 'cours', 'termine']);
+    }
+
+    // ---- Tout le reste : administrateurs uniquement ----------------------
+    match /clients/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /clients/{id}/vehicles/{vid} {
+      allow read, write: if isAdmin();
+    }
+    // Lecture groupée des véhicules (listes déroulantes client -> véhicule)
+    match /{path=**}/vehicles/{vid} {
+      allow read: if isAdmin();
+    }
+    match /stock/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /documents/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /counters/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /technicians/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /appointments/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /cashEntries/{id} {
+      allow read, write: if isAdmin();
     }
   }
 }

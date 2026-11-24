@@ -1,30 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../theme/app_theme.dart';
 
-/// Écusson circulaire "MP" — identité visuelle propre à Merco Plus,
-/// alignée sur l'accent unique (vert) du reste de la plateforme.
+/// Logo officiel Merco Plus (écusson + voiture + nom).
+///
+/// `size` = hauteur du logo. Par défaut la variante pour fonds sombres
+/// (marine passé en blanc) ; `onLight: true` donne les couleurs d'origine
+/// pour un fond clair.
 class MpBadge extends StatelessWidget {
   final double size;
-  const MpBadge({super.key, this.size = 44});
+  final bool onLight;
+  const MpBadge({super.key, this.size = 44, this.onLight = false});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size,
+    return Image.asset(
+      onLight ? 'assets/images/logo.png' : 'assets/images/logo_dark.png',
       height: size,
-      decoration: const BoxDecoration(shape: BoxShape.circle, color: MpColors.accent),
-      child: Center(
-        child: Text(
-          'MP',
-          style: GoogleFonts.oswald(
-            color: Colors.black,
-            fontWeight: FontWeight.w700,
-            fontSize: size * 0.36,
-            letterSpacing: .5,
-          ),
-        ),
-      ),
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.high,
+      errorBuilder: (_, __, ___) => SizedBox(width: size, height: size),
     );
   }
 }

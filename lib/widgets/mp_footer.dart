@@ -22,15 +22,12 @@ class MpFooter extends StatelessWidget {
         final brand = Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const MpBadge(size: 38),
-            const SizedBox(width: 12),
+            const MpBadge(size: 64),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('MERCO PLUS',
-                      style: GoogleFonts.oswald(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
-                  const SizedBox(height: 6),
                   Text(
                     "Diagnostic électronique, réparation mécanique, entretien\net vente de pièces détachées.",
                     style: TextStyle(color: Colors.grey.shade400, fontSize: 11.5, height: 1.5),
@@ -49,7 +46,9 @@ class MpFooter extends StatelessWidget {
                 style: GoogleFonts.oswald(
                     color: Colors.grey.shade500, fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w600)),
             const SizedBox(height: 10),
-            _row(Icons.location_on_outlined, 'Brazzaville, République du Congo'),
+            _row(Icons.location_on_outlined, '96 Rue Nzoko, Mpila — Brazzaville'),
+            const SizedBox(height: 6),
+            _row(Icons.phone_outlined, '+242 06 760 33 33'),
             const SizedBox(height: 6),
             _row(Icons.build_outlined, 'Diagnostic · Réparation · Entretien · Pièces'),
           ],

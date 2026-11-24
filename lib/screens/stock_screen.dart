@@ -63,6 +63,7 @@ class _StockScreenState extends State<StockScreen> {
                   itemBuilder: (context, i) {
                     final s = items[i];
                     return ListTile(
+                      onTap: () => _openStockDialog(context, existing: s),
                       title: Text('${s.name}  ·  ${s.ref}'),
                       subtitle: Text(
                           '${s.loc.isEmpty ? "Emplacement non précisé" : s.loc} · ${s.supplier.isEmpty ? "—" : s.supplier} · ${_fmt.format(s.price)} FCFA / unité'),
@@ -79,6 +80,12 @@ class _StockScreenState extends State<StockScreen> {
                             onPressed: () => fs.adjustStock(s.id, s.qty, 1),
                           ),
                           IconButton(
+                            tooltip: 'Modifier',
+                            icon: const Icon(Icons.edit_outlined),
+                            onPressed: () => _openStockDialog(context, existing: s),
+                          ),
+                          IconButton(
+                            tooltip: 'Supprimer',
                             icon: const Icon(Icons.delete_outline, color: MpColors.red),
                             onPressed: () => fs.deleteStockItem(s.id),
                           ),
@@ -95,19 +102,19 @@ class _StockScreenState extends State<StockScreen> {
     );
   }
 
-  void _openStockDialog(BuildContext context) {
-    final refCtrl = TextEditingController();
-    final nameCtrl = TextEditingController();
-    final qtyCtrl = TextEditingController(text: '0');
-    final minCtrl = TextEditingController(text: '2');
-    final priceCtrl = TextEditingController(text: '0');
-    final locCtrl = TextEditingController();
-    final supplierCtrl = TextEditingController();
+  void _openStockDialog(BuildContext context, {StockItem? existing}) {
+    final refCtrl = TextEditingController(text: existing?.ref ?? '');
+    final nameCtrl = TextEditingController(text: existing?.name ?? '');
+    final qtyCtrl = TextEditingController(text: '${existing?.qty ?? 0}');
+    final minCtrl = TextEditingController(text: '${existing?.min ?? 2}');
+    final priceCtrl = TextEditingController(text: '${existing?.price ?? 0}');
+    final locCtrl = TextEditingController(text: existing?.loc ?? '');
+    final supplierCtrl = TextEditingController(text: existing?.supplier ?? '');
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Nouvelle pièce'),
+        title: Text(existing == null ? 'Nouvelle pièce' : 'Modifier la pièce'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -146,8 +153,8 @@ class _StockScreenState extends State<StockScreen> {
           ElevatedButton(
             onPressed: () async {
               if (refCtrl.text.trim().isEmpty || nameCtrl.text.trim().isEmpty) return;
-              await FirestoreService.instance.addStockItem(StockItem(
-                id: '',
+              final item = StockItem(
+                id: existing?.id ?? '',
                 ref: refCtrl.text.trim(),
                 name: nameCtrl.text.trim(),
                 qty: int.tryParse(qtyCtrl.text) ?? 0,
@@ -155,7 +162,12 @@ class _StockScreenState extends State<StockScreen> {
                 price: int.tryParse(priceCtrl.text) ?? 0,
                 loc: locCtrl.text.trim(),
                 supplier: supplierCtrl.text.trim(),
-              ));
+              );
+              if (existing == null) {
+                await FirestoreService.instance.addStockItem(item);
+              } else {
+                await FirestoreService.instance.updateStockItem(item);
+              }
               if (ctx.mounted) Navigator.pop(ctx);
             },
             child: const Text('Enregistrer'),

@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Refonte complète, inspirée d'une identité "éditoriale" façon Nsomi
-/// Jire : fond noir pur, aucune bordure de carte, une seule couleur
-/// d'accent (vert). Le rouge/l'orange ne sont conservés que pour des
-/// alertes fonctionnelles réelles (facture impayée, stock bas) — jamais
-/// comme couleur décorative de l'interface.
+/// Identité Merco Plus : fonds bleu nuit (marine du logo), une seule couleur
+/// d'accent — le bleu clair du logo. Le rouge/l'orange/le vert ne servent que
+/// pour des états fonctionnels réels (impayé, stock bas, payé) — jamais
+/// comme couleur décorative.
 class MpColors {
-  static const black = Color(0xFF000000); // fond de page, pur
-  static const surface = Color(0xFF0D0F11); // cartes — à peine plus clair que le fond, sans bordure
-  static const surfaceHi = Color(0xFF15181B); // survol / éléments légèrement surélevés
+  static const navy = Color(0xFF001048); // marine du logo
+  static const black = Color(0xFF040A1C); // fond de page : bleu nuit très sombre
+  static const surface = Color(0xFF0A1330); // cartes — bleu nuit, sans bordure
+  static const surfaceHi = Color(0xFF111C42); // survol / éléments légèrement surélevés
 
-  // Accent unique
-  static const accent = Color(0xFF22C55E);
-  static const accentDim = Color(0x2622C55E); // accent en fond translucide (badges, glow)
+  // Accent unique : le bleu clair du logo
+  static const accent = Color(0xFF48A0E8);
+  static const accentDim = Color(0x2648A0E8); // accent en fond translucide (badges, glow)
+
+  // État « OK / payé / prêt » uniquement (jamais décoratif)
+  static const success = Color(0xFF22C55E);
+  static const successDim = Color(0x2622C55E);
 
   // Alertes fonctionnelles uniquement (jamais décoratives)
   static const danger = Color(0xFFEF4444);
@@ -23,13 +27,13 @@ class MpColors {
 
   // Texte
   static const textPrimaryDark = Color(0xFFF5F7F7);
-  static const textPrimaryLight = Color(0xFF0A0C0D);
+  static const textPrimaryLight = Color(0xFF0A1330);
   static const muted = Color(0xFF8A9199);
 
-  static const borderDark = Color(0x14FFFFFF); // liseré quasi invisible, réservé aux séparateurs de texte
-  static const bgLight = Color(0xFFF7F8F7);
+  static const borderDark = Color(0x1AFFFFFF); // liseré quasi invisible, réservé aux séparateurs de texte
+  static const bgLight = Color(0xFFF3F7FC);
   static const cardLight = Color(0xFFFFFFFF);
-  static const borderLight = Color(0xFFE7E9E7);
+  static const borderLight = Color(0xFFDCE6F4);
 
   // Alias conservés pour compatibilité avec du code existant (rétrocompatibilité
   // des noms utilisés ailleurs dans le projet).
@@ -40,8 +44,8 @@ class MpColors {
   static const blueLight = accent;
   static const red = danger;
   static const redBg = dangerDim;
-  static const green = accent;
-  static const greenBg = accentDim;
+  static const green = success;
+  static const greenBg = successDim;
   static const amber = warning;
   static const amberBg = warningDim;
   static const chromeC = muted;
@@ -93,7 +97,7 @@ class MpTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: MpColors.accent,
-          foregroundColor: Colors.black,
+          foregroundColor: MpColors.navy,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           shape: const StadiumBorder(),
           textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
@@ -170,7 +174,7 @@ class MpTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: MpColors.accent,
-          foregroundColor: Colors.black,
+          foregroundColor: MpColors.navy,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           shape: const StadiumBorder(),
           textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
@@ -178,7 +182,7 @@ class MpTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: MpColors.accent,
+          foregroundColor: MpColors.navy,
           side: const BorderSide(color: MpColors.borderLight),
           shape: const StadiumBorder(),
         ),

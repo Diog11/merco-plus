@@ -10,3 +10,4 @@ ios/Flutter/Flutter.framework
 ios/Flutter/Flutter.podspec
 android/.gradle/
 android/local.properties
+.firebase/

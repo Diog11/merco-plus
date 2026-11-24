@@ -1,0 +1,23 @@
+MERCO PLUS - mise a jour 4 (cumulative : contient les mises a jour 1 a 3)
+
+NOUVEAUTE : mode hors ligne (donnees en cache, modifications en file d'attente,
+application ouvrable sans Internet une fois installee depuis l'hebergement).
+
+ETAPES (une a la fois) :
+
+1) Console Firebase > Firestore > Regles : dans le texte, remplacez
+       duration.value(30, 'm')
+   par
+       duration.value(12, 'h')
+   puis "Publier".
+
+2) Arretez l'application (Ctrl+C), copiez le contenu de ce zip dans mercoplus_flutter
+   (remplacer les fichiers : lib, web, firestore.rules...).
+
+3) Test rapide : flutter run -d web-server, connectez-vous, puis coupez votre Internet
+   (Wi-Fi) : le bandeau "Hors ligne" apparait et l'application continue de fonctionner.
+
+4) Pour ouvrir l'application SANS Internet (apres une premiere visite en ligne) :
+       flutter build web --release
+       firebase deploy --only hosting
+   Ouvrez l'adresse de l'hebergement (en ligne), connectez-vous, actualisez 2 fois (F5).

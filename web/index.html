@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <!--
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Plateforme de gestion du garage Merco Plus : clients, stock, devis et factures, ateliers, calendrier.">
+
+  <!-- Couleur de la barre du navigateur / de l'application installée -->
+  <meta name="theme-color" content="#040A1C">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Merco Plus">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Merco Plus — Gestion de garage</title>
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Fond noir dès le premier affichage : évite un flash blanc au lancement -->
+  <style>
+    html, body { margin: 0; background: #040A1C; }
+  </style>
+</head>
+<body>
+  <script src="flutter_bootstrap.js" async></script>
+
+  <!-- Mode hors ligne : copie locale de l'application (hébergement https ; en local,
+       ajouter ?sw=1 à l'adresse pour l'activer). -->
+  <script>
+    (function () {
+      if (!('serviceWorker' in navigator)) return;
+      var local = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+      if (local && location.search.indexOf('sw=1') === -1) return;
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          regs.forEach(function (r) {
+            var w = r.active || r.waiting || r.installing;
+            if (w && w.scriptURL.indexOf('mp_sw.js') === -1) r.unregister();
+          });
+        }).catch(function () {}).then(function () {
+          return navigator.serviceWorker.register('mp_sw.js');
+        }).catch(function () {});
+      });
+    })();
+  </script>
+</body>
+</html>

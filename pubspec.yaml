@@ -19,7 +19,8 @@ dependencies:
   google_fonts: ^6.2.1        # Oswald (titres) + Inter (corps) sans avoir à embarquer les polices
   intl: ^0.19.0                # formatage des montants (FCFA) et des dates
   uuid: ^4.4.0                 # génération d'identifiants locaux
-  video_player: ^2.9.2         # vidéo d'arrière-plan sur le tableau de bord
+  video_player: ^2.9.2         # vidéo d'arrière-plan du tableau de bord
+  web: ^1.1.0                  # ouverture de la fenêtre d'impression
   cupertino_icons: ^1.0.8
   fl_chart: ^1.0.0              # graphiques du tableau de bord (évolution du CA, etc.)
 
@@ -30,7 +31,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  # Ajoutez ici vos propres photos d'atelier une fois disponibles, ex. :
-  # assets:
-  #   - assets/images/atelier1.jpg
-  #   - assets/videos/atelier_bg.mp4
+  assets:
+    - assets/images/

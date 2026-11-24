@@ -1,7 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart' show FirebaseException;
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../models/models.dart';
+import '../services/auth_flow.dart';
+import '../services/firestore_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/account_type_picker.dart';
 import '../widgets/mp_badge.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -15,29 +19,75 @@ class _SignupScreenState extends State<SignupScreen> {
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  final _adminCodeCtrl = TextEditingController();
+  UserRole _role = UserRole.technicien; // par défaut : compte restreint
   bool _loading = false;
+  bool _obscure = true;
   String? _error;
 
   Future<void> _signup() async {
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty) {
+      setState(() => _error = 'Indiquez votre nom complet.');
+      return;
+    }
+    if (_role == UserRole.admin && _adminCodeCtrl.text.trim().isEmpty) {
+      setState(() => _error = 'Le code administrateur est obligatoire pour un compte Admin.');
+      return;
+    }
     setState(() {
       _loading = true;
       _error = null;
     });
+    AuthFlow.busy.value = true;
+    AuthFlow.freshLogin = true; // il vient de saisir e-mail + mot de passe
+    User? created;
     try {
       final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailCtrl.text.trim(),
         password: _passwordCtrl.text,
       );
-      if (_nameCtrl.text.trim().isNotEmpty) {
-        await cred.user?.updateDisplayName(_nameCtrl.text.trim());
+      created = cred.user;
+      try {
+        await FirestoreService.instance.createUserProfile(
+          uid: created!.uid,
+          name: name,
+          email: _emailCtrl.text.trim(),
+          role: _role,
+          adminCode: _adminCodeCtrl.text.trim(),
+        );
+      } catch (e) {
+        // Profil refusé (ex. mauvais code admin) : on supprime le compte tout
+        // juste créé, pour ne pas laisser un compte sans rôle.
+        try {
+          await created?.delete();
+        } catch (_) {
+          await FirebaseAuth.instance.signOut();
+        }
+        final denied = e is FirebaseException && e.code == 'permission-denied';
+        throw _SignupRefused(denied && _role == UserRole.admin
+            ? 'Code administrateur incorrect. Le compte n\'a pas été créé.'
+            : 'Impossible d\'enregistrer le profil. Réessayez.');
       }
-      // AuthGate détecte automatiquement la connexion et redirige
-      // vers la plateforme — voir lib/screens/auth_gate.dart.
+      if (_role == UserRole.admin) {
+        try {
+          await AuthFlow.startAdminSession(created!.uid, _adminCodeCtrl.text.trim());
+        } catch (_) {/* sans gravité : l'écran de code administrateur s'affichera */}
+      }
+      await FirebaseAuth.instance.currentUser?.updateDisplayName(name);
+      // AuthGate lit le profil (rôle) et ouvre la bonne interface.
+      if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
+    } on _SignupRefused catch (e) {
+      AuthFlow.freshLogin = false;
+      setState(() => _error = e.message);
     } on FirebaseAuthException catch (e) {
+      AuthFlow.freshLogin = false;
       setState(() => _error = _friendlyError(e.code));
     } catch (_) {
+      AuthFlow.freshLogin = false;
       setState(() => _error = "Une erreur est survenue. Réessayez.");
     } finally {
+      AuthFlow.busy.value = false;
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -46,6 +96,8 @@ class _SignupScreenState extends State<SignupScreen> {
     switch (code) {
       case 'email-already-in-use':
         return "Un compte existe déjà avec cet e-mail.";
+      case 'network-request-failed':
+        return "Pas de connexion Internet : la connexion à la plateforme nécessite Internet.";
       case 'invalid-email':
         return "Adresse e-mail invalide.";
       case 'weak-password':
@@ -79,13 +131,8 @@ class _SignupScreenState extends State<SignupScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Center(child: MpBadge(size: 56)),
-                const SizedBox(height: 14),
-                Text('MERCO PLUS',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.oswald(
-                        fontWeight: FontWeight.w700, fontSize: 18, letterSpacing: 1, color: MpColors.textPrimaryDark)),
-                const SizedBox(height: 4),
+                const Center(child: MpBadge(size: 92)),
+                const SizedBox(height: 10),
                 Text('Créer un compte membre de l\'équipe',
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: MpColors.chromeC, fontSize: 12.5)),
@@ -103,9 +150,21 @@ class _SignupScreenState extends State<SignupScreen> {
                 const SizedBox(height: 14),
                 TextField(
                   controller: _passwordCtrl,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Mot de passe (6 caractères min.)'),
-                  onSubmitted: (_) => _signup(),
+                  obscureText: _obscure,
+                  decoration: InputDecoration(
+                    labelText: 'Mot de passe (6 caractères min.)',
+                    suffixIcon: IconButton(
+                      tooltip: _obscure ? 'Afficher le mot de passe' : 'Masquer le mot de passe',
+                      icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 18),
+                      onPressed: () => setState(() => _obscure = !_obscure),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                AccountTypePicker(
+                  role: _role,
+                  adminCodeCtrl: _adminCodeCtrl,
+                  onChanged: (r) => setState(() => _role = r),
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 12),
@@ -134,4 +193,9 @@ class _SignupScreenState extends State<SignupScreen> {
       ),
     );
   }
+}
+
+class _SignupRefused implements Exception {
+  final String message;
+  _SignupRefused(this.message);
 }

@@ -8,34 +8,40 @@ import 'package:video_player/video_player.dart';
 import '../models/models.dart';
 import '../services/firestore_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/cash_today_card.dart';
 import '../widgets/kpi_card.dart';
 import '../widgets/animated_card.dart';
 import '../widgets/mp_footer.dart';
 import '../widgets/mp_carousel.dart';
 
-/// Vidéo d'arrière-plan libre de droits (licence Pexels, réutilisation
-/// commerciale autorisée) — à remplacer par vos propres images d'atelier
-/// dès qu'elles seront disponibles en bonne résolution.
+/// Vidéo d'arrière-plan du bandeau d'accueil (libre de droits, licence Pexels).
+/// Remplaçable plus tard par une vidéo de l'atelier (voir le README).
 const _heroVideoUrl =
     'https://videos.pexels.com/video-files/14514790/14514790-uhd_2560_1440_25fps.mp4';
 
+/// Photo réelle de l'atelier : fond du bandeau tant que la vidéo charge
+/// (et quand il n'y a pas d'Internet).
+const _heroPhoto = 'assets/images/atelier.jpg';
+
+/// Photos réelles de l'atelier Merco Plus (fichiers embarqués dans l'application :
+/// elles s'affichent aussi sans Internet).
+
 const _galleryPhotos = [
-  {
-    'url': 'https://images.pexels.com/photos/20872015/pexels-photo-20872015.jpeg?auto=compress&cs=tinysrgb&w=800',
-    'caption': 'Atelier — pont élévateur',
-  },
-  {
-    'url': 'https://images.pexels.com/photos/8985456/pexels-photo-8985456.jpeg?auto=compress&cs=tinysrgb&w=800',
-    'caption': 'Diagnostic moteur',
-  },
-  {
-    'url': 'https://images.pexels.com/photos/6517339/pexels-photo-6517339.jpeg?auto=compress&cs=tinysrgb&w=800',
-    'caption': 'Réparation mécanique',
-  },
+  {'asset': 'assets/images/atelier.jpg', 'caption': "L'atelier"},
+  {'asset': 'assets/images/diagnostic_terrain.jpg', 'caption': 'Diagnostic électronique'},
+  {'asset': 'assets/images/banc_moteur.jpg', 'caption': 'Banc moteur'},
+  {'asset': 'assets/images/formation.jpg', 'caption': 'Centre de formation'},
+  {'asset': 'assets/images/affiche_diagnostic.jpg', 'caption': 'Diagnostic automobile complet'},
+  {'asset': 'assets/images/affiche_stage.jpg', 'caption': 'Stage vacances'},
+  {'asset': 'assets/images/salon.jpg', 'caption': 'Salon professionnel'},
+  {'asset': 'assets/images/entree.jpg', 'caption': "Entrée de l'atelier"},
+  {'asset': 'assets/images/parc.jpg', 'caption': 'Parc de véhicules'},
 ];
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  /// Ouvre l'onglet « Caisse » (brouillard complet).
+  final VoidCallback? onOpenCash;
+  const DashboardScreen({super.key, this.onOpenCash});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -63,10 +69,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _videoController = controller;
           _videoReady = true;
         });
+      } else {
+        controller.dispose();
       }
     } catch (_) {
-      // Pas de réseau ou vidéo indisponible : le dégradé de secours
-      // (voir build()) reste affiché à la place.
+      // Pas d'Internet ou vidéo indisponible : la photo de l'atelier reste affichée.
     }
   }
 
@@ -116,6 +123,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               _hero(context, docs),
                               const SizedBox(height: 24),
                               _kpiSection(clients, stock, docs, jobs),
+                              const SizedBox(height: 20),
+                              CashTodayCard(onOpen: widget.onOpenCash),
                               const SizedBox(height: 20),
                               LayoutBuilder(builder: (context, c) {
                                 final wide = c.maxWidth > 900;
@@ -168,8 +177,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final lastMonthDate = DateTime(now.year, now.month - 1);
     final lastMonth = docs.where((d) =>
         d.type == DocType.facture && d.date.year == lastMonthDate.year && d.date.month == lastMonthDate.month);
-    final caMonth = thisMonth.fold<int>(0, (a, d) => a + d.total);
-    final caLast = lastMonth.fold<int>(0, (a, d) => a + d.total);
+    final caMonth = thisMonth.fold<int>(0, (a, d) => a + d.subtotal);
+    final caLast = lastMonth.fold<int>(0, (a, d) => a + d.subtotal);
     final progression = caLast == 0 ? null : ((caMonth - caLast) / caLast * 100);
     final up = (progression ?? 0) >= 0;
 
@@ -181,9 +190,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Stack(
           fit: StackFit.expand,
           children: [
+            Opacity(
+              opacity: .45,
+              child: Image.asset(
+                _heroPhoto,
+                fit: BoxFit.cover,
+                alignment: const Alignment(0, .35),
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              ),
+            ),
             if (_videoReady && _videoController != null)
               Opacity(
-                opacity: .35,
+                opacity: .55,
                 child: FittedBox(
                   fit: BoxFit.cover,
                   child: SizedBox(
@@ -193,7 +211,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
               ),
-            // Lueur verte unique, discrète — seule touche de couleur du fond.
+            // Lueur bleue discrète.
             Positioned(top: -80, right: -40, child: _glow(MpColors.accent.withOpacity(.28), 320)),
             Container(color: MpColors.black.withOpacity(.55)),
             Padding(
@@ -301,7 +319,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final vehCount = clients.fold<int>(0, (a, c) => a + c.vehicles.length);
     final stockValue = stock.fold<int>(0, (a, s) => a + s.qty * s.price);
     final unpaid = docs.where((d) => d.type == DocType.facture && d.status == DocStatus.impaye).toList();
-    final unpaidSum = unpaid.fold<int>(0, (a, d) => a + d.total);
+    final unpaidSum = unpaid.fold<int>(0, (a, d) => a + d.remaining);
     final ongoing = jobs.where((j) => j.status == JobStatus.cours).length;
 
     return LayoutBuilder(builder: (context, constraints) {
@@ -349,7 +367,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final totals = months.map((m) {
       return docs
           .where((d) => d.type == DocType.facture && d.date.year == m.year && d.date.month == m.month)
-          .fold<int>(0, (a, d) => a + d.total);
+          .fold<int>(0, (a, d) => a + d.subtotal);
     }).toList();
     final maxY = (totals.isEmpty ? 0 : totals.reduce((a, b) => a > b ? a : b)).toDouble();
 
@@ -518,7 +536,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ...lowStock.map((s) => _alertRow(Icons.remove_shopping_cart_outlined, MpColors.red,
           '${s.name} en rupture (${s.qty}/${s.min})')),
       ...unpaid.map((d) => _alertRow(Icons.description_outlined, MpColors.amber, 'Facture #${d.num} impayée')),
-      ...ready.map((j) => _alertRow(Icons.check_circle_outline, MpColors.green, 'Véhicule prêt — ${j.desc}')),
+      ...ready.map((j) => _alertRow(Icons.check_circle_outline, MpColors.success, 'Véhicule prêt — ${j.desc}')),
     ];
 
     return AnimatedCard(
@@ -571,12 +589,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const Text('Glissez pour parcourir', style: TextStyle(color: MpColors.chromeC, fontSize: 11.5)),
             const SizedBox(height: 16),
             MpCarousel(
-              height: 190,
-              viewportFraction: .38,
+              height: 230,
+              viewportFraction: .34,
               items: _galleryPhotos
                   .map((p) => ClipRRect(
                         borderRadius: BorderRadius.circular(14),
-                        child: _GalleryTile(url: p['url']!, caption: p['caption']!),
+                        child: _GalleryTile(asset: p['asset']!, caption: p['caption']!),
                       ))
                   .toList(),
             ),
@@ -595,9 +613,9 @@ class _ActivityEvent {
 }
 
 class _GalleryTile extends StatefulWidget {
-  final String url;
+  final String asset;
   final String caption;
-  const _GalleryTile({required this.url, required this.caption});
+  const _GalleryTile({required this.asset, required this.caption});
 
   @override
   State<_GalleryTile> createState() => _GalleryTileState();
@@ -620,7 +638,15 @@ class _GalleryTileState extends State<_GalleryTile> {
               scale: _hover ? 1.06 : 1.0,
               duration: const Duration(milliseconds: 250),
               curve: Curves.easeOut,
-              child: Image.network(widget.url, fit: BoxFit.cover),
+              child: Image.asset(
+                widget.asset,
+                fit: BoxFit.cover,
+                cacheWidth: 600,
+                errorBuilder: (_, __, ___) => Container(
+                  color: MpColors.surfaceHi,
+                  child: const Icon(Icons.image_outlined, color: MpColors.muted),
+                ),
+              ),
             ),
             Align(
               alignment: Alignment.bottomLeft,
